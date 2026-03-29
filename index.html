@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kink journal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:linear-gradient(135deg,#f0ecff 0%,#fdf0f7 50%,#fff4ed 100%);
+  --card-bg:#fff;
+  --text:#2a1f3d;
+  --text2:#6b5f7a;
+  --text3:#a89ab8;
+  --border:#e8e0f0;
+  --drawer-bg:#fff;
+  --input-bg:#f9f6ff;
+  --status-h:#f3eeff;
+}
+body{font-family:'DM Mono',monospace;background:var(--bg);min-height:100vh;color:var(--text);font-size:13px}
+h1,h2,h3,.serif{font-family:'Playfair Display',serif}
+
+/* LOGIN SCREEN */
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#f0ecff 0%,#fdf0f7 50%,#fff4ed 100%);z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px}
+#login-box{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(124,92,191,.12);border:1px solid var(--border)}
+#login-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:#7c5cbf;margin-bottom:4px;text-align:center}
+#login-sub{font-size:11px;color:var(--text3);text-align:center;margin-bottom:24px;letter-spacing:.04em}
+.login-field{margin-bottom:14px}
+.login-lbl{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;letter-spacing:.03em}
+.login-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--input-bg);font-family:'DM Mono',monospace;font-size:13px;color:var(--text);outline:none;transition:border-color .2s}
+.login-input:focus{border-color:#b89ae0}
+#login-btn{width:100%;padding:11px;background:linear-gradient(135deg,#9b72cf,#e07fa0);color:#fff;border:none;border-radius:20px;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;margin-top:8px;letter-spacing:.03em}
+#login-btn:hover{opacity:.9}
+#login-err{font-size:11px;color:#c62828;text-align:center;margin-top:10px;min-height:16px}
+#login-loading{font-size:11px;color:var(--text3);text-align:center;margin-top:10px;display:none}
+
+/* STATS BAR */
+#stats-bar{background:rgba(255,255,255,0.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:100}
+.stat-chip{display:flex;flex-direction:column;align-items:center;min-width:54px}
+.stat-num{font-size:16px;font-weight:500;font-family:'Playfair Display',serif;color:var(--text)}
+.stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.stat-div{width:1px;height:28px;background:var(--border)}
+#app-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;color:#7c5cbf;flex:1}
+#logout-btn{padding:5px 12px;border:1px solid var(--border);border-radius:20px;background:rgba(255,255,255,0.8);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;color:var(--text2)}
+#logout-btn:hover{background:#f0e8ff;border-color:#c4a8e8}
+
+/* CONTROLS */
+#controls{padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:rgba(255,255,255,0.6)}
+#search{flex:1;min-width:160px;padding:7px 12px;border:1px solid var(--border);border-radius:20px;background:var(--input-bg);font-family:'DM Mono',monospace;font-size:12px;outline:none;color:var(--text)}
+#search:focus{border-color:#b89ae0}
+select.filter{padding:6px 10px;border:1px solid var(--border);border-radius:20px;background:var(--input-bg);font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;cursor:pointer}
+.ctrl-btn{padding:6px 12px;border:1px solid var(--border);border-radius:20px;background:rgba(255,255,255,0.8);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;color:var(--text2)}
+.ctrl-btn:hover{background:#f0e8ff;border-color:#c4a8e8}
+
+/* MAIN */
+#main{padding:12px 16px 80px}
+
+/* SYNC STATUS */
+#sync-bar{text-align:center;font-size:11px;color:var(--text3);padding:6px;display:none}
+#sync-bar.show{display:block}
+
+/* CATEGORY CARD */
+.cat-card{background:var(--card-bg);border-radius:14px;margin-bottom:10px;overflow:hidden;border-left:4px solid #ccc;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.cat-header{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none}
+.cat-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:500;flex:1}
+.cat-counter{font-size:11px;color:var(--text3);background:var(--status-h);border-radius:10px;padding:2px 8px}
+.cat-toggle{font-size:14px;color:var(--text3);transition:transform .2s}
+.cat-body{padding:0 8px 8px}
+
+/* KINK ROW */
+.kink-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;cursor:pointer;transition:background .15s;flex-wrap:wrap}
+.kink-row:hover{background:#faf5ff}
+.kink-name{flex:1;min-width:120px;font-size:12px}
+.kink-name.logged{font-family:'Playfair Display',serif;font-style:italic;font-size:13px}
+.kink-row-pills{display:flex;gap:3px;flex-wrap:wrap}
+.partner-pill-sm{font-size:10px;padding:1px 6px;border-radius:10px;background:#f0e8ff;color:#6b3fa0;font-family:'DM Mono',monospace}
+.badge{font-size:10px;padding:1px 6px;border-radius:10px;font-family:'DM Mono',monospace}
+.badge-notes{background:#fff3e0;color:#a0520d}
+.badge-count{background:#e8f5e9;color:#2e7d32}
+.status-chip{font-size:10px;padding:2px 8px;border-radius:10px;font-family:'DM Mono',monospace;white-space:nowrap}
+
+/* STATUS COLORS */
+.s-not-tried{background:#f5f5f5;color:#777}
+.s-curious{background:#e8f4fd;color:#1565c0}
+.s-tried-liked{background:#e8f5e9;color:#2e7d32}
+.s-tried-disliked{background:#fce4ec;color:#c62828}
+.s-soft-limit{background:#fff8e1;color:#e65100}
+.s-hard-limit{background:#f3e5f5;color:#6a1b9a}
+
+/* DRAWER OVERLAY */
+#drawer-overlay{position:fixed;inset:0;background:rgba(80,40,120,.18);z-index:200;opacity:0;transition:opacity .25s;pointer-events:none}
+#drawer-overlay.open{opacity:1;pointer-events:all}
+#drawer{position:fixed;bottom:0;left:0;right:0;max-height:82vh;background:var(--drawer-bg);border-radius:20px 20px 0 0;z-index:201;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);overflow:hidden;display:flex;flex-direction:column}
+#drawer.open{transform:translateY(0)}
+#drawer-handle{width:40px;height:4px;border-radius:2px;background:#e0d8f0;margin:10px auto 0}
+#drawer-head{padding:10px 16px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+#drawer-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:500}
+#drawer-cat{font-size:11px;color:var(--text3);margin-top:2px}
+#drawer-scroll{overflow-y:auto;flex:1;padding:12px 16px}
+#drawer-foot{padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0}
+
+/* ENTRY CARD */
+.entry-card{background:#faf6ff;border:1px solid #ede5f8;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.entry-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.entry-date{font-size:11px;color:var(--text3)}
+.entry-partners{display:flex;gap:3px;flex-wrap:wrap}
+.entry-field{margin-top:6px}
+.entry-field-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.entry-field-val{font-size:12px;color:var(--text);line-height:1.5}
+.no-entries{font-size:13px;color:var(--text3);text-align:center;padding:24px 0;font-family:'Playfair Display',serif;font-style:italic}
+
+/* NEW ENTRY FORM */
+#new-entry-form{display:none;background:#f3eeff;border:1px solid #d8c8f0;border-radius:12px;padding:12px;margin-top:8px}
+#new-entry-form.show{display:block}
+.form-row{margin-bottom:8px}
+.form-lbl{font-size:11px;color:var(--text2);margin-bottom:3px;display:block}
+.form-input{width:100%;padding:7px 10px;border:1px solid #d8c8f0;border-radius:8px;background:#fff;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none}
+.form-input:focus{border-color:#b89ae0}
+select.form-input{cursor:pointer}
+.form-textarea{resize:vertical;min-height:56px;line-height:1.5}
+.form-actions{display:flex;gap:8px;margin-top:8px}
+.btn-primary{padding:7px 16px;background:linear-gradient(135deg,#9b72cf,#e07fa0);color:#fff;border:none;border-radius:20px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer}
+.btn-primary:hover{opacity:.9}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.btn-secondary{padding:7px 14px;background:#fff;color:var(--text2);border:1px solid var(--border);border-radius:20px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer}
+.btn-secondary:hover{background:#f0e8ff}
+.btn-log{padding:6px 14px;background:linear-gradient(135deg,#9b72cf,#e07fa0);color:#fff;border:none;border-radius:20px;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;width:100%}
+.btn-log:hover{opacity:.9}
+
+/* TAG INPUT */
+#partner-input-wrap{position:relative}
+#partner-suggestions{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #d8c8f0;border-radius:8px;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.08);display:none}
+.partner-sug{padding:6px 10px;cursor:pointer;font-size:12px;font-family:'DM Mono',monospace}
+.partner-sug:hover{background:#f3eeff}
+.partner-pills-wrap{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px}
+.partner-pill-tag{display:flex;align-items:center;gap:3px;font-size:11px;padding:2px 8px;border-radius:10px;background:#e8d8f8;color:#6b3fa0}
+.partner-pill-tag .rm{cursor:pointer;font-size:12px;line-height:1}
+
+/* PARTNER MANAGER */
+#partner-mgr{padding:4px 0 8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.partner-global-pill{display:flex;align-items:center;gap:3px;font-size:11px;padding:2px 8px 2px 10px;border-radius:10px;background:#f0e8ff;color:#6b3fa0}
+.partner-global-pill .rm{cursor:pointer;font-size:13px;line-height:1;opacity:.6}
+.partner-global-pill .rm:hover{opacity:1}
+
+/* APP WRAPPER */
+#app{display:none}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div id="login-box">
+    <div id="login-title">✦ kink journal</div>
+    <div id="login-sub">sign in to your private journal</div>
+    <div class="login-field">
+      <label class="login-lbl">email</label>
+      <input type="email" id="login-email" class="login-input" placeholder="your@email.com" autocomplete="email">
+    </div>
+    <div class="login-field">
+      <label class="login-lbl">password</label>
+      <input type="password" id="login-password" class="login-input" placeholder="password" autocomplete="current-password">
+    </div>
+    <button id="login-btn">sign in</button>
+    <div id="login-err"></div>
+    <div id="login-loading">signing in...</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div id="stats-bar">
+    <div id="app-title">✦ kink journal</div>
+    <div class="stat-chip"><span class="stat-num" id="s-total">0</span><span class="stat-lbl">Items</span></div>
+    <div class="stat-div"></div>
+    <div class="stat-chip"><span class="stat-num" id="s-logs">0</span><span class="stat-lbl">Logs</span></div>
+    <div class="stat-div"></div>
+    <div class="stat-chip"><span class="stat-num" id="s-tried">0</span><span class="stat-lbl">Tried</span></div>
+    <div class="stat-chip"><span class="stat-num" id="s-curious">0</span><span class="stat-lbl">Curious</span></div>
+    <div class="stat-chip"><span class="stat-num" id="s-soft">0</span><span class="stat-lbl">Soft</span></div>
+    <div class="stat-chip"><span class="stat-num" id="s-hard">0</span><span class="stat-lbl">Hard</span></div>
+    <div class="stat-div"></div>
+    <div class="stat-chip"><span class="stat-num" id="s-partners">0</span><span class="stat-lbl">Partners</span></div>
+    <button id="logout-btn">sign out</button>
+  </div>
+
+  <div id="sync-bar">syncing...</div>
+
+  <div id="controls">
+    <input id="search" type="text" placeholder="search kinks...">
+    <select id="filter-status" class="filter">
+      <option value="">All statuses</option>
+      <option value="has-entries">Has entries</option>
+      <option value="Not Tried">Not Tried</option>
+      <option value="Curious">Curious</option>
+      <option value="Tried — Liked">Tried — Liked</option>
+      <option value="Tried — Disliked">Tried — Disliked</option>
+      <option value="Soft Limit">Soft Limit</option>
+      <option value="Hard Limit">Hard Limit</option>
+    </select>
+    <select id="filter-partner" class="filter"><option value="">All partners</option></select>
+    <button class="ctrl-btn" id="expand-all">Expand all</button>
+    <button class="ctrl-btn" id="collapse-all">Collapse all</button>
+    <button class="ctrl-btn" id="btn-export">Export backup</button>
+  </div>
+
+  <div id="main"></div>
+
+  <!-- DRAWER -->
+  <div id="drawer-overlay"></div>
+  <div id="drawer">
+    <div id="drawer-handle"></div>
+    <div id="drawer-head">
+      <div id="drawer-title"></div>
+      <div id="drawer-cat"></div>
+    </div>
+    <div id="drawer-scroll">
+      <div id="entries-list"></div>
+      <button class="btn-log" id="btn-show-form">+ log new entry</button>
+      <div id="new-entry-form">
+        <div class="form-row">
+          <label class="form-lbl">Date <span style="color:var(--text3);font-size:10px">(leave blank for today)</span></label>
+          <input type="date" id="f-date" class="form-input">
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Status</label>
+          <select id="f-status" class="form-input">
+            <option>Not Tried</option>
+            <option>Curious</option>
+            <option>Tried — Liked</option>
+            <option>Tried — Disliked</option>
+            <option>Soft Limit</option>
+            <option>Hard Limit</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Partners</label>
+          <div class="partner-pills-wrap" id="tag-pills"></div>
+          <div id="partner-input-wrap">
+            <input type="text" id="f-partner" class="form-input" placeholder="add partner name...">
+            <div id="partner-suggestions"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Notes</label>
+          <textarea id="f-notes" class="form-input form-textarea" placeholder="any notes about this..."></textarea>
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Feelings / Experience</label>
+          <textarea id="f-feelings" class="form-input form-textarea" placeholder="how did it feel?"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" id="btn-save-entry">Save entry</button>
+          <button class="btn-secondary" id="btn-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div id="drawer-foot">
+      <div id="partner-mgr"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE INIT ──────────────────────────────────────────────
+const SUPABASE_URL = 'https://bmsrpsrvfearzdzslkjs.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtc3Jwc3J2ZmVhcnpkenNsa2pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTE1NjEsImV4cCI6MjA5MDM2NzU2MX0.Xcer7aRcNxlhvKJlg_6eMadTGR1h66q2EpgheYIcC38';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── CATEGORIES ─────────────────────────────────────────────────
+const CATS = [
+  {id:'power',name:'Power Exchange & Dynamics',color:'#7c5cbf',border:'#b89ae0',items:['Dominant/submissive (D/s)','Master/slave (M/s)','Owner/pet','Daddy/little (DDlg)','Mommy/little (MDlg)','Caregiver/little (CG/l)','Top/bottom','Switch dynamics','Service submission','Protocol (low/medium/high)','Total Power Exchange (TPE)','Consensual non-consent (CNC)','Authority exchange','Obedience training','Ownership collaring','Leashing','Position training','Ritual and ceremony','Micro-management','24/7 dynamic']},
+  {id:'bondage',name:'Bondage & Restraint',color:'#c85a8a',border:'#e8a0c0',items:['Rope bondage (shibari/kinbaku)','Cuffs (leather/metal/fabric)','Spreader bars','Hog-tie','Hogcuff','Suspension bondage','Partial suspension','Strappado','Box tie / Takate Kote','Mummification','Tape bondage','Plastic wrap bondage','Straitjacket','Stocks','Pillory','Cage/crate confinement','Chastity device','Armbinder/monoglove','Bed restraints','Furniture bondage']},
+  {id:'impact',name:'Impact Play',color:'#d4682a',border:'#ebb08a',items:['Hand spanking','Paddling','Flogging','Caning','Cropping','Belting','Whipping','Single-tail','Slapping (face)','Punching (consensual)','Hairbrush','Tawse','Birching','Rulers','Thuddy vs stingy sensation','Over-the-knee (OTK)','Boot trampling','Stomping','Cupping (suction)','Abrading']},
+  {id:'sensation',name:'Sensation Play',color:'#2a8c8c',border:'#80caca',items:['Wax play','Ice play','Fire play (florentine/fire cupping)','Electrostimulation (e-stim/TENS)','Violet wand','Wartenberg wheel','Feather play','Scratching','Pinching','Vampire gloves','Hot and cold alternation','Menthol/Tiger Balm play','Sensory deprivation (blindfold)','Sensory deprivation (earplugs)','Sensory deprivation (full hood)','Tickling','Silk/satin teasing','Orgasm control/denial','Edging','Forced orgasm']},
+  {id:'psych',name:'Psychological & Dominance Play',color:'#5a3fa0',border:'#a08ae0',items:['Humiliation (private)','Humiliation (public)','Degradation','Name-calling / honorifics','Objectification','Dehumanization','Consensual blackmail','Mind games / mindfuck','Gaslighting play','Interrogation scene','Safeword dynamics','Micromanagement','Inspection and approval','Punishment dynamics','Reward systems','Conditioning','Behavior modification','Worship (body/feet/other)','Jealousy play','Competition play']},
+  {id:'roleplay',name:'Role Play & Scene Types',color:'#2a6ca0',border:'#80a8d0',items:['Kidnapping/abduction scene','Interrogation/prisoner','Medical/clinical scene','Teacher/student','Boss/employee','Stranger/pickup','Intruder fantasy','Pet/animal play','Pony play','Puppy play','Kitten play','Age play (non-sexual)','Somnophilia scene','Stalker/prey','Superhero/villain','Royalty/servant','Cult/initiation scene','Monster/creature play','Priest/sinner','Historical or period scene']},
+  {id:'body',name:'Body & Fluid Play',color:'#1a8050',border:'#70c0a0',items:['Watersports (giving)','Watersports (receiving)','Spit play','Blood play','Menstrual play','Enemas','Anal training','Fisting (vaginal)','Fisting (anal)','Sounding','Insertables/dilators','Speculum play','Catheterization','Milking','Rimming','Cum play','Body writing/marking','Scarification (consensual)','Branding','Permanent marks/tattoos']},
+  {id:'exhib',name:'Exhibitionism & Voyeurism',color:'#a05a20',border:'#d0a070',items:['Exhibitionism (private)','Exhibitionism (semi-public)','Exhibitionism (public)','Voyeurism','Being watched during sex','Filming/photography (private)','Sharing photos (consensual)','Public nudity','Flashing','Dogging / car sex','Outdoor sex','Strip/performance','Erotic dancing','Clothed/naked (CFNM/CMNF)','Cuckolding','Hotwifing','Compersion play','Directed/instructed touching','Remote vibrator in public','Leash walking in public']},
+  {id:'oral',name:'Oral & Penetrative',color:'#7a2a60',border:'#c080a8',items:['Oral service (giving)','Oral service (receiving)','Deep-throating/facefucking','Use as a sex toy','Penetrative sex (vaginal)','Penetrative sex (anal)','Strap-on play','Pegging','Spit-roasting','Gangbang','Threesome (FFM)','Threesome (MMF)','Orgies/group sex','Creampie','Multiple penetration','Vibrator/toy use on partner','Remote-controlled toy','Edging during oral','69 / mutual oral','Forced to watch']},
+  {id:'breath',name:'Breath & Edge Play',color:'#8a2020',border:'#c08080',items:['Hand breathplay','Ligature breathplay','Bag breathplay','Face-sitting breathplay','Underwater/pool play','Knife play (edge)','Needle play','Piercing play','Cutting (consensual)','Burning / hot wax edge','Gun play (unloaded/replica)','Fear play','Predator/prey chase','Extreme bondage positions','Prolonged isolation','Sleep deprivation scene','Forced exercise/exhaustion','Cold exposure','Full body suspension','Intensity pushing']},
+  {id:'apparel',name:'Apparel & Fetish Objects',color:'#4a6a20',border:'#90a860',items:['Latex/rubber','Leather','PVC/vinyl','Corsets','High heels','Boots','Gloves','Lingerie/frilly underwear','Schoolgirl/uniform','Nurse/doctor uniform','Military/police uniform','Maid outfit','Collars','Leash','Gag (ball gag)','Gag (bit gag)','Gag (ring gag)','Blindfolds and hoods','Masks','Diapers/abdl clothing']},
+  {id:'aftercare',name:'Aftercare & Care Dynamics',color:'#8a5a20',border:'#c09870',items:['Physical aftercare (blankets/warmth)','Food and drink after play','Verbal affirmation/praise','Holding/cuddling','Quiet/silence preference','Journaling together','Debrief conversation','Subspace support','Domspace support','Sub drop care','Dom drop care','Long-distance aftercare','Check-in texts next day','Safeword negotiation','Consent discussion ritual','Scene planning together','Medical/safety check after','Trigger check-ins','Emotional processing','Ongoing dynamic check-ins']}
+];
+
+const STATUS_CLASS = {'Not Tried':'s-not-tried','Curious':'s-curious','Tried — Liked':'s-tried-liked','Tried — Disliked':'s-tried-disliked','Soft Limit':'s-soft-limit','Hard Limit':'s-hard-limit'};
+
+// ── STATE ──────────────────────────────────────────────────────
+let DATA = {partners:[], kinks:{}};
+let currentKinkId = null;
+let tempPartners = [];
+let collapsed = {};
+let currentUser = null;
+let dbRecordId = null; // the single row id in Supabase for this user's data
+
+// ── AUTH ───────────────────────────────────────────────────────
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    showApp();
+    await loadData();
+  }
+  // listen for auth changes
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      showApp();
+      await loadData();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      DATA = {partners:[], kinks:{}};
+      dbRecordId = null;
+      showLogin();
+    }
+  });
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+document.getElementById('login-btn').addEventListener('click', async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-err');
+  const loadEl = document.getElementById('login-loading');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; return; }
+  document.getElementById('login-btn').style.display = 'none';
+  loadEl.style.display = 'block';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  loadEl.style.display = 'none';
+  document.getElementById('login-btn').style.display = 'block';
+  if (error) { errEl.textContent = error.message; }
+});
+
+// allow pressing Enter in password field to submit
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-btn').click();
+});
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+});
+
+// ── DATA LAYER (Supabase) ──────────────────────────────────────
+function showSync(msg) {
+  const bar = document.getElementById('sync-bar');
+  bar.textContent = msg;
+  bar.classList.add('show');
+}
+function hideSync() {
+  document.getElementById('sync-bar').classList.remove('show');
+}
+
+async function loadData() {
+  if (!currentUser) return;
+  showSync('loading your data...');
+  try {
+    const { data, error } = await sb
+      .from('entries')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) {
+      dbRecordId = data.id;
+      DATA = data.payload || {partners:[], kinks:{}};
+    } else {
+      dbRecordId = null;
+      DATA = {partners:[], kinks:{}};
+    }
+  } catch(e) {
+    console.error('Load error:', e);
+  }
+  hideSync();
+  render();
+}
+
+async function saveData() {
+  if (!currentUser) return;
+  showSync('saving...');
+  try {
+    if (dbRecordId) {
+      const { error } = await sb
+        .from('entries')
+        .update({ payload: DATA })
+        .eq('id', dbRecordId)
+        .eq('user_id', currentUser.id);
+      if (error) throw error;
+    } else {
+      const { data, error } = await sb
+        .from('entries')
+        .insert({ user_id: currentUser.id, payload: DATA })
+        .select()
+        .single();
+      if (error) throw error;
+      dbRecordId = data.id;
+    }
+  } catch(e) {
+    console.error('Save error:', e);
+  }
+  hideSync();
+}
+
+// ── HELPERS ────────────────────────────────────────────────────
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function slugify(cat,item){return cat+'::'+item}
+function statusClass(s){return STATUS_CLASS[s]||'s-not-tried'}
+
+function getLatestEntry(kinkId){
+  const entries = DATA.kinks[kinkId];
+  if(!entries||!entries.length) return null;
+  return [...entries].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+}
+
+function allPartnersOnKink(kinkId){
+  const entries = DATA.kinks[kinkId]||[];
+  const set = new Set();
+  entries.forEach(e=>(e.partners||[]).forEach(p=>set.add(p)));
+  return [...set];
+}
+
+// ── STATS ──────────────────────────────────────────────────────
+function updateStats(){
+  let logs=0,tried=0,curious=0,soft=0,hard=0;
+  let total = CATS.reduce((a,c)=>a+c.items.length,0);
+  Object.values(DATA.kinks).forEach(entries=>{
+    logs+=entries.length;
+    const latest = [...entries].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    if(!latest) return;
+    if(latest.status==='Tried — Liked'||latest.status==='Tried — Disliked') tried++;
+    if(latest.status==='Curious') curious++;
+    if(latest.status==='Soft Limit') soft++;
+    if(latest.status==='Hard Limit') hard++;
+  });
+  document.getElementById('s-total').textContent=total;
+  document.getElementById('s-logs').textContent=logs;
+  document.getElementById('s-tried').textContent=tried;
+  document.getElementById('s-curious').textContent=curious;
+  document.getElementById('s-soft').textContent=soft;
+  document.getElementById('s-hard').textContent=hard;
+  document.getElementById('s-partners').textContent=DATA.partners.length;
+}
+
+function updatePartnerFilter(){
+  const sel = document.getElementById('filter-partner');
+  const cur = sel.value;
+  sel.innerHTML='<option value="">All partners</option>';
+  DATA.partners.forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p;o.textContent=p;
+    if(p===cur) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
+function getFilters(){
+  return{
+    q:document.getElementById('search').value.toLowerCase(),
+    status:document.getElementById('filter-status').value,
+    partner:document.getElementById('filter-partner').value
+  };
+}
+
+function kinkVisible(kinkId, itemName, filters){
+  if(filters.q && !itemName.toLowerCase().includes(filters.q)) return false;
+  const latest = getLatestEntry(kinkId);
+  if(filters.status==='has-entries'){
+    if(!DATA.kinks[kinkId]||!DATA.kinks[kinkId].length) return false;
+  } else if(filters.status){
+    if(!latest||latest.status!==filters.status) return false;
+  }
+  if(filters.partner){
+    const partners = allPartnersOnKink(kinkId);
+    if(!partners.includes(filters.partner)) return false;
+  }
+  return true;
+}
+
+// ── RENDER ─────────────────────────────────────────────────────
+function render(){
+  updateStats();
+  updatePartnerFilter();
+  const filters = getFilters();
+  const main = document.getElementById('main');
+  main.innerHTML='';
+
+  CATS.forEach(cat=>{
+    const visibleItems = cat.items.filter(item=>kinkVisible(slugify(cat.id,item),item,filters));
+    if(filters.q||filters.status||filters.partner){
+      if(!visibleItems.length) return;
+    }
+    const loggedCount = cat.items.filter(item=>{
+      const id=slugify(cat.id,item);
+      return DATA.kinks[id]&&DATA.kinks[id].length>0;
+    }).length;
+
+    const card = document.createElement('div');
+    card.className='cat-card';
+    card.style.borderLeftColor=cat.color;
+
+    const isCollapsed = collapsed[cat.id];
+    card.innerHTML=`<div class="cat-header" data-cat="${cat.id}">
+      <span class="cat-name" style="color:${cat.color}">${cat.name}</span>
+      <span class="cat-counter">${loggedCount}/${cat.items.length}</span>
+      <span class="cat-toggle">${isCollapsed?'▸':'▾'}</span>
+    </div>
+    <div class="cat-body" style="${isCollapsed?'display:none':''}"></div>`;
+
+    const body = card.querySelector('.cat-body');
+    const itemsToShow = (filters.q||filters.status||filters.partner) ? visibleItems : cat.items;
+    itemsToShow.forEach(item=>{
+      const kinkId = slugify(cat.id,item);
+      const latest = getLatestEntry(kinkId);
+      const entries = DATA.kinks[kinkId]||[];
+      const partners = allPartnersOnKink(kinkId);
+      const hasNotes = entries.some(e=>(e.notes&&e.notes.trim())||(e.feelings&&e.feelings.trim()));
+
+      const row = document.createElement('div');
+      row.className='kink-row';
+      row.dataset.kink=kinkId;
+      row.dataset.catname=cat.name;
+      row.dataset.catcolor=cat.color;
+      row.dataset.itemname=item;
+
+      let pHtml = partners.map(p=>`<span class="partner-pill-sm">${escH(p)}</span>`).join('');
+      let badges = '';
+      if(hasNotes) badges+=`<span class="badge badge-notes">notes</span>`;
+      if(entries.length>1) badges+=`<span class="badge badge-count">${entries.length}x</span>`;
+      const statusHtml = latest ? `<span class="status-chip ${statusClass(latest.status)}">${latest.status}</span>` : '';
+
+      row.innerHTML=`<span class="kink-name${latest?' logged':''}">${escH(item)}</span>
+        <span class="kink-row-pills">${pHtml}</span>
+        ${badges}${statusHtml}`;
+      body.appendChild(row);
+    });
+
+    card.querySelector('.cat-header').addEventListener('click',()=>{
+      collapsed[cat.id]=!collapsed[cat.id];
+      const b=card.querySelector('.cat-body');
+      const t=card.querySelector('.cat-toggle');
+      b.style.display=collapsed[cat.id]?'none':'';
+      t.textContent=collapsed[cat.id]?'▸':'▾';
+    });
+
+    main.appendChild(card);
+  });
+
+  main.querySelectorAll('.kink-row').forEach(row=>{
+    row.addEventListener('click',()=>openDrawer(row.dataset.kink,row.dataset.itemname,row.dataset.catname,row.dataset.catcolor));
+  });
+}
+
+// ── DRAWER ─────────────────────────────────────────────────────
+function openDrawer(kinkId, name, catName, catColor){
+  currentKinkId=kinkId;
+  tempPartners=[];
+  document.getElementById('drawer-title').textContent=name;
+  document.getElementById('drawer-cat').textContent=catName;
+  document.getElementById('drawer-cat').style.color=catColor;
+  renderEntries();
+  renderPartnerMgr();
+  const form=document.getElementById('new-entry-form');
+  form.classList.remove('show');
+  document.getElementById('btn-show-form').style.display='';
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('f-date').value=today;
+  document.getElementById('f-status').value='Not Tried';
+  document.getElementById('f-notes').value='';
+  document.getElementById('f-feelings').value='';
+  renderTagPills();
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer(){
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+  currentKinkId=null;
+}
+
+function renderEntries(){
+  const list=document.getElementById('entries-list');
+  const entries=(DATA.kinks[currentKinkId]||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!entries.length){list.innerHTML='<div class="no-entries">No entries yet — log your first below.</div>';return;}
+  list.innerHTML=entries.map((e,i)=>`
+    <div class="entry-card">
+      <div class="entry-meta">
+        <span class="status-chip ${statusClass(e.status)}">${escH(e.status)}</span>
+        <span class="entry-date">${escH(e.date)}</span>
+        <span class="entry-partners">${(e.partners||[]).map(p=>`<span class="partner-pill-sm">${escH(p)}</span>`).join('')}</span>
+      </div>
+      ${e.notes?`<div class="entry-field"><div class="entry-field-lbl">Notes</div><div class="entry-field-val">${escH(e.notes)}</div></div>`:''}
+      ${e.feelings?`<div class="entry-field"><div class="entry-field-lbl">Feelings</div><div class="entry-field-val">${escH(e.feelings)}</div></div>`:''}
+    </div>`).join('');
+}
+
+function renderPartnerMgr(){
+  const mgr=document.getElementById('partner-mgr');
+  if(!DATA.partners.length){mgr.innerHTML='<span style="font-size:11px;color:var(--text3)">No partners yet</span>';return;}
+  mgr.innerHTML=DATA.partners.map(p=>`<span class="partner-global-pill">${escH(p)}<span class="rm" data-p="${escH(p)}">×</span></span>`).join('');
+  mgr.querySelectorAll('.rm').forEach(el=>{
+    el.addEventListener('click',()=>{
+      DATA.partners=DATA.partners.filter(x=>x!==el.dataset.p);
+      saveData();renderPartnerMgr();updatePartnerFilter();
+    });
+  });
+}
+
+function renderTagPills(){
+  const wrap=document.getElementById('tag-pills');
+  wrap.innerHTML=tempPartners.map(p=>`<span class="partner-pill-tag">${escH(p)}<span class="rm" data-p="${escH(p)}">×</span></span>`).join('');
+  wrap.querySelectorAll('.rm').forEach(el=>{
+    el.addEventListener('click',()=>{tempPartners=tempPartners.filter(x=>x!==el.dataset.p);renderTagPills();});
+  });
+}
+
+// ── PARTNER AUTOCOMPLETE ───────────────────────────────────────
+const partnerInput=document.getElementById('f-partner');
+const sugDiv=document.getElementById('partner-suggestions');
+partnerInput.addEventListener('input',()=>{
+  const q=partnerInput.value.trim().toLowerCase();
+  if(!q){sugDiv.style.display='none';return;}
+  const matches=DATA.partners.filter(p=>p.toLowerCase().includes(q)&&!tempPartners.includes(p));
+  if(!matches.length){sugDiv.style.display='none';return;}
+  sugDiv.innerHTML=matches.map(p=>`<div class="partner-sug" data-p="${escH(p)}">${escH(p)}</div>`).join('');
+  sugDiv.style.display='block';
+  sugDiv.querySelectorAll('.partner-sug').forEach(el=>{
+    el.addEventListener('click',()=>{
+      addTempPartner(el.dataset.p);
+      partnerInput.value='';sugDiv.style.display='none';
+    });
+  });
+});
+partnerInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const v=partnerInput.value.trim();
+    if(v){addTempPartner(v);partnerInput.value='';sugDiv.style.display='none';}
+  }
+});
+partnerInput.addEventListener('blur',()=>{
+  setTimeout(()=>{
+    if(document.activeElement&&document.activeElement.closest('#partner-suggestions')) return;
+    const v=partnerInput.value.trim();
+    if(v){addTempPartner(v);partnerInput.value='';sugDiv.style.display='none';}
+  },150);
+});
+function addTempPartner(p){
+  if(!tempPartners.includes(p)) tempPartners.push(p);
+  if(!DATA.partners.includes(p)){DATA.partners.push(p);saveData();updatePartnerFilter();}
+  renderTagPills();
+}
+
+// ── FORM ACTIONS ───────────────────────────────────────────────
+document.getElementById('btn-show-form').addEventListener('click',()=>{
+  document.getElementById('new-entry-form').classList.add('show');
+  document.getElementById('btn-show-form').style.display='none';
+});
+document.getElementById('btn-cancel').addEventListener('click',()=>{
+  document.getElementById('new-entry-form').classList.remove('show');
+  document.getElementById('btn-show-form').style.display='';
+});
+
+document.getElementById('btn-save-entry').addEventListener('click', async ()=>{
+  const btn = document.getElementById('btn-save-entry');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  const entry={
+    date:document.getElementById('f-date').value||new Date().toISOString().slice(0,10),
+    status:document.getElementById('f-status').value,
+    partners:[...tempPartners],
+    notes:document.getElementById('f-notes').value.trim(),
+    feelings:document.getElementById('f-feelings').value.trim()
+  };
+  if(!DATA.kinks[currentKinkId]) DATA.kinks[currentKinkId]=[];
+  DATA.kinks[currentKinkId].push(entry);
+  await saveData();
+  renderEntries();
+  document.getElementById('new-entry-form').classList.remove('show');
+  document.getElementById('btn-show-form').style.display='';
+  tempPartners=[];
+  renderTagPills();
+  render();
+  btn.disabled = false;
+  btn.textContent = 'Save entry';
+});
+
+document.getElementById('drawer-overlay').addEventListener('click',closeDrawer);
+document.getElementById('search').addEventListener('input',render);
+document.getElementById('filter-status').addEventListener('change',render);
+document.getElementById('filter-partner').addEventListener('change',render);
+document.getElementById('expand-all').addEventListener('click',()=>{CATS.forEach(c=>collapsed[c.id]=false);render();});
+document.getElementById('collapse-all').addEventListener('click',()=>{CATS.forEach(c=>collapsed[c.id]=true);render();});
+
+// ── EXPORT BACKUP ──────────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click',()=>{
+  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='kink-journal-backup.json';
+  a.click();
+});
+
+// ── BOOT ───────────────────────────────────────────────────────
+initAuth();
+</script>
+</body>
+</html>
