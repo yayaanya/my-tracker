@@ -343,7 +343,6 @@ async function initAuth() {
     showApp();
     await loadData();
   }
-  // listen for auth changes
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
       currentUser = session.user;
@@ -354,6 +353,16 @@ async function initAuth() {
       DATA = {partners:[], kinks:{}};
       dbRecordId = null;
       showLogin();
+    }
+  });
+
+  // when Safari on iPhone resumes from background, re-check session and reload data
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && currentUser) {
+      const appVisible = document.getElementById('app').style.display !== 'none';
+      if (!appVisible) {
+        await loadData();
+      }
     }
   });
 }
