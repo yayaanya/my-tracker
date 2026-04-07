@@ -144,8 +144,31 @@ select.form-input{cursor:pointer}
 .partner-global-pill .rm{cursor:pointer;font-size:13px;line-height:1;opacity:.6}
 .partner-global-pill .rm:hover{opacity:1}
 
+/* LOADING SCREEN */
+#loading-screen{position:fixed;inset:0;background:linear-gradient(135deg,#f0ecff 0%,#fdf0f7 50%,#fff4ed 100%);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+#loading-screen.hidden{display:none!important}
+.loading-title{font-family:'Playfair Display',serif;font-size:22px;color:#7c5cbf}
+.loading-dots{display:flex;gap:6px}
+.loading-dot{width:7px;height:7px;border-radius:50%;background:#b89ae0;animation:dotpulse 1.2s ease-in-out infinite}
+.loading-dot:nth-child(2){animation-delay:.2s}
+.loading-dot:nth-child(3){animation-delay:.4s}
+@keyframes dotpulse{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
 /* APP WRAPPER */
 #app{display:none}
+
+/* EDIT FORM */
+.edit-entry-form{background:#f3eeff;border:1px solid #d8c8f0;border-radius:10px;padding:12px;margin-top:8px;display:none}
+.edit-entry-form.show{display:block}
+.entry-actions{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+.btn-edit{padding:4px 10px;background:#fff;color:#7c5cbf;border:1px solid #d8c8f0;border-radius:12px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer}
+.btn-edit:hover{background:#f0e8ff}
+.btn-delete{padding:4px 10px;background:#fff;color:#c62828;border:1px solid #ffd0d0;border-radius:12px;font-family:'DM Mono',monospace;font-size:10px;cursor:pointer}
+.btn-delete:hover{background:#fff0f0}
+.btn-save-edit{padding:5px 14px;background:linear-gradient(135deg,#9b72cf,#e07fa0);color:#fff;border:none;border-radius:12px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer}
+.btn-save-edit:hover{opacity:.9}
+.btn-cancel-edit{padding:5px 12px;background:#fff;color:var(--text2);border:1px solid var(--border);border-radius:12px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer}
+.btn-cancel-edit:hover{background:#f0e8ff}
 
 .hidden{display:none!important}
 </style>
@@ -168,6 +191,16 @@ select.form-input{cursor:pointer}
     <button id="login-btn">sign in</button>
     <div id="login-err"></div>
     <div id="login-loading">signing in...</div>
+  </div>
+</div>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen" class="hidden">
+  <div class="loading-title">✦ kink journal</div>
+  <div class="loading-dots">
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
   </div>
 </div>
 
@@ -322,6 +355,12 @@ async function initAuth() {
 
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('loading-screen').classList.remove('hidden');
+  document.getElementById('app').style.display = 'none';
+}
+
+function revealApp() {
+  document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('app').style.display = 'block';
 }
 
@@ -386,6 +425,7 @@ async function loadData() {
     console.error('Load error:', e);
   }
   hideSync();
+  revealApp();
   render();
 }
 
@@ -594,10 +634,12 @@ function closeDrawer(){
 
 function renderEntries(){
   const list=document.getElementById('entries-list');
-  const entries=(DATA.kinks[currentKinkId]||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const rawEntries = DATA.kinks[currentKinkId]||[];
+  const entries = rawEntries.map((e,i)=>({...e, _origIndex:i})).sort((a,b)=>new Date(b.date)-new Date(a.date));
   if(!entries.length){list.innerHTML='<div class="no-entries">No entries yet — log your first below.</div>';return;}
-  list.innerHTML=entries.map((e,i)=>`
-    <div class="entry-card">
+
+  list.innerHTML = entries.map((e)=>`
+    <div class="entry-card" data-orig-index="${e._origIndex}">
       <div class="entry-meta">
         <span class="status-chip ${statusClass(e.status)}">${escH(e.status)}</span>
         <span class="entry-date">${escH(e.date)}</span>
@@ -605,7 +647,82 @@ function renderEntries(){
       </div>
       ${e.notes?`<div class="entry-field"><div class="entry-field-lbl">Notes</div><div class="entry-field-val">${escH(e.notes)}</div></div>`:''}
       ${e.feelings?`<div class="entry-field"><div class="entry-field-lbl">Feelings</div><div class="entry-field-val">${escH(e.feelings)}</div></div>`:''}
+      <div class="entry-actions">
+        <button class="btn-edit" data-orig-index="${e._origIndex}">edit</button>
+        <button class="btn-delete" data-orig-index="${e._origIndex}">delete</button>
+      </div>
+      <div class="edit-entry-form" id="edit-form-${e._origIndex}">
+        <div class="form-row">
+          <label class="form-lbl">Date</label>
+          <input type="date" class="form-input edit-date" value="${escH(e.date)}">
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Status</label>
+          <select class="form-input edit-status">
+            ${['Not Tried','Curious','Tried — Liked','Tried — Disliked','Soft Limit','Hard Limit'].map(s=>`<option${s===e.status?' selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Notes</label>
+          <textarea class="form-input form-textarea edit-notes">${escH(e.notes||'')}</textarea>
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Feelings / Experience</label>
+          <textarea class="form-input form-textarea edit-feelings">${escH(e.feelings||'')}</textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn-save-edit" data-orig-index="${e._origIndex}">Save changes</button>
+          <button class="btn-cancel-edit" data-orig-index="${e._origIndex}">Cancel</button>
+        </div>
+      </div>
     </div>`).join('');
+
+  // edit button: show inline form
+  list.querySelectorAll('.btn-edit').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = btn.dataset.origIndex;
+      const form = document.getElementById(`edit-form-${idx}`);
+      form.classList.toggle('show');
+    });
+  });
+
+  // cancel edit
+  list.querySelectorAll('.btn-cancel-edit').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = btn.dataset.origIndex;
+      document.getElementById(`edit-form-${idx}`).classList.remove('show');
+    });
+  });
+
+  // save edit
+  list.querySelectorAll('.btn-save-edit').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.dataset.origIndex);
+      const form = document.getElementById(`edit-form-${idx}`);
+      DATA.kinks[currentKinkId][idx].date = form.querySelector('.edit-date').value;
+      DATA.kinks[currentKinkId][idx].status = form.querySelector('.edit-status').value;
+      DATA.kinks[currentKinkId][idx].notes = form.querySelector('.edit-notes').value.trim();
+      DATA.kinks[currentKinkId][idx].feelings = form.querySelector('.edit-feelings').value.trim();
+      btn.textContent = 'Saving...';
+      await saveData();
+      btn.textContent = 'Save changes';
+      renderEntries();
+      render();
+    });
+  });
+
+  // delete button
+  list.querySelectorAll('.btn-delete').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this entry? This cannot be undone.')) return;
+      const idx = parseInt(btn.dataset.origIndex);
+      DATA.kinks[currentKinkId].splice(idx, 1);
+      if(DATA.kinks[currentKinkId].length === 0) delete DATA.kinks[currentKinkId];
+      await saveData();
+      renderEntries();
+      render();
+    });
+  });
 }
 
 function renderPartnerMgr(){
