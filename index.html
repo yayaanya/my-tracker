@@ -85,6 +85,7 @@ select.filter{padding:6px 10px;border:1px solid var(--border);border-radius:20px
 .s-not-tried{background:#f5f5f5;color:#777}
 .s-curious{background:#e8f4fd;color:#1565c0}
 .s-tried-liked{background:#e8f5e9;color:#2e7d32}
+.s-tried-neutral{background:#f3f0ff;color:#5a3fa0}
 .s-tried-disliked{background:#fce4ec;color:#c62828}
 .s-soft-limit{background:#fff8e1;color:#e65100}
 .s-hard-limit{background:#f3e5f5;color:#6a1b9a}
@@ -231,6 +232,7 @@ select.form-input{cursor:pointer}
       <option value="Not Tried">Not Tried</option>
       <option value="Curious">Curious</option>
       <option value="Tried — Liked">Tried — Liked</option>
+      <option value="Tried — Neutral">Tried — Neutral</option>
       <option value="Tried — Disliked">Tried — Disliked</option>
       <option value="Soft Limit">Soft Limit</option>
       <option value="Hard Limit">Hard Limit</option>
@@ -265,6 +267,7 @@ select.form-input{cursor:pointer}
             <option>Not Tried</option>
             <option>Curious</option>
             <option>Tried — Liked</option>
+            <option>Tried — Neutral</option>
             <option>Tried — Disliked</option>
             <option>Soft Limit</option>
             <option>Hard Limit</option>
@@ -320,15 +323,17 @@ const CATS = [
   {id:'aftercare',name:'Aftercare & Care Dynamics',color:'#8a5a20',border:'#c09870',items:['Physical aftercare (blankets/warmth)','Food and drink after play','Verbal affirmation/praise','Holding/cuddling','Quiet/silence preference','Journaling together','Debrief conversation','Subspace support','Domspace support','Sub drop care','Dom drop care','Long-distance aftercare','Check-in texts next day','Safeword negotiation','Consent discussion ritual','Scene planning together','Medical/safety check after','Trigger check-ins','Emotional processing','Ongoing dynamic check-ins']}
 ];
 
-const STATUS_CLASS = {'Not Tried':'s-not-tried','Curious':'s-curious','Tried — Liked':'s-tried-liked','Tried — Disliked':'s-tried-disliked','Soft Limit':'s-soft-limit','Hard Limit':'s-hard-limit'};
+const STATUS_CLASS = {'Not Tried':'s-not-tried','Curious':'s-curious','Tried — Liked':'s-tried-liked','Tried — Neutral':'s-tried-neutral','Tried — Disliked':'s-tried-disliked','Soft Limit':'s-soft-limit','Hard Limit':'s-hard-limit'};
 
 // ── STATE ──────────────────────────────────────────────────────
 let DATA = {partners:[], kinks:{}};
 let currentKinkId = null;
 let tempPartners = [];
-let collapsed = {};
 let currentUser = null;
-let dbRecordId = null; // the single row id in Supabase for this user's data
+let dbRecordId = null;
+
+// start with all categories collapsed
+let collapsed = Object.fromEntries(CATS.map(c=>[c.id, true]));
 
 // ── AUTH ───────────────────────────────────────────────────────
 async function initAuth() {
@@ -481,7 +486,7 @@ function updateStats(){
     logs+=entries.length;
     const latest = [...entries].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
     if(!latest) return;
-    if(latest.status==='Tried — Liked'||latest.status==='Tried — Disliked') tried++;
+    if(latest.status==='Tried — Liked'||latest.status==='Tried — Neutral'||latest.status==='Tried — Disliked') tried++;
     if(latest.status==='Curious') curious++;
     if(latest.status==='Soft Limit') soft++;
     if(latest.status==='Hard Limit') hard++;
@@ -659,7 +664,7 @@ function renderEntries(){
         <div class="form-row">
           <label class="form-lbl">Status</label>
           <select class="form-input edit-status">
-            ${['Not Tried','Curious','Tried — Liked','Tried — Disliked','Soft Limit','Hard Limit'].map(s=>`<option${s===e.status?' selected':''}>${s}</option>`).join('')}
+            ${['Not Tried','Curious','Tried — Liked','Tried — Neutral','Tried — Disliked','Soft Limit','Hard Limit'].map(s=>`<option${s===e.status?' selected':''}>${s}</option>`).join('')}
           </select>
         </div>
         <div class="form-row">
